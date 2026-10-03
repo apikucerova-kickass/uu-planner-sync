@@ -1,0 +1,6 @@
+credentials.json
+token.json
+.env
+uu_debug.json
+__pycache__/
+*.log
