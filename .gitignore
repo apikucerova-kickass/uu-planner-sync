@@ -4,3 +4,4 @@ token.json
 uu_debug.json
 __pycache__/
 *.log
+inspect_uu.py
