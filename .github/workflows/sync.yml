@@ -1,9 +1,6 @@
 name: Sync Unicorn Tasks & Calendar
 
 on:
-  schedule:
-    # Každé pondělí v 05:00 UTC (cca 6:00/7:00 našeho času)
-    - cron: '0 5 * * 1'
   workflow_dispatch:
 
 jobs:
