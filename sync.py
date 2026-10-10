@@ -3,8 +3,11 @@ import os
 from datetime import datetime, timedelta, timezone
 
 # --- Automatické načtení souboru .env na Macu ---
-if os.path.exists(".env"):
-    with open(".env", "r", encoding="utf-8") as f:
+script_dir = os.path.dirname(os.path.abspath(__file__))
+env_path = os.path.join(script_dir, ".env")
+
+if os.path.exists(env_path):
+    with open(env_path, "r", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
             if line and not line.startswith("#") and "=" in line:
@@ -93,8 +96,18 @@ def run_sync():
     cutoff = now - timedelta(days=LOOKBACK_DAYS)
 
     print("Stahuji data z Plus4U...")
-    headers = {"Authorization": UU_AUTH_HEADER, "Content-Type": "application/json"}
-    resp = requests.post(UU_ENDPOINT, headers=headers, json={"loadAll": True})
+    headers = {
+        "Authorization": UU_AUTH_HEADER,
+        "Content-Type": "application/json; charset=utf-8",
+        "Accept": "application/json",
+        "Origin": "https://uuapp.plus4u.net",
+        "Referer": "https://uuapp.plus4u.net/"
+    }
+    payload = {
+        "uri": UU_ENDPOINT,
+        "pageInfo": {"pageSize": 4000}
+    }
+    resp = requests.post(UU_ENDPOINT, headers=headers, json=payload)
     resp.raise_for_status()
     
     data = resp.json()
