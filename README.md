@@ -19,45 +19,12 @@ termíny v kalendáři a nemusím je hlídat v Plus4U ručně.
 
 ## Jak to běží
 
-GitHub Action [`sync.yml`](.github/workflows/sync.yml) spouští `sync.py`
-každé pondělí v 5:00 UTC. Ručně jde spustit přes **Actions → Run workflow**.
-Po doběhnutí commitne aktualizovanou `sync_cache.json` zpátky do repa.
+Původně byla synchronizace plánovaná přes GitHub Actions (každé pondělí). Kvůli tomu, že Plus4U používá krátkodobé `Bearer` tokeny (cca 30 minut) a nemá možnost trvalého API klíče ani přímého přihlášení přes skript, cloudové spouštění selhávalo na chybě 401.
 
-Potřebuje tyhle repository secrets:
+**Aktuální poloautomatický režim:**
+Skript se spouští ručně na Macu podle potřeby. Stačí mít v prohlížeči otevřené Plus4U, zkopírovat aktuální token a spustit skript lokálně.
 
-| Secret | Obsah |
-|---|---|
-| `UU_ENDPOINT` | URL endpointu `listActiveRecords` mého Plus4U teritoria |
-| `UU_AUTH_HEADER` | `Bearer <token>` k Plus4U |
-| `CALENDAR_ID` | ID Google Kalendáře, do kterého se zapisují události |
-| `GOOGLE_CREDENTIALS` | obsah `token.json` (OAuth token Googlu s refresh tokenem) |
+## Spuštění synchronizace
 
-## Lokální spuštění
-
-```bash
-pip install google-api-python-client google-auth-httplib2 google-auth-oauthlib requests
-```
-
-1. V Google Cloud Console vytvořit OAuth klienta typu *Desktop app*
-   se zapnutým Tasks a Calendar API a stáhnout ho jako `credentials.json`.
-2. Vytvořit `.env`:
-   ```
-   UU_ENDPOINT=https://uuapp.plus4u.net/...
-   UU_AUTH_HEADER=Bearer ...
-   CALENDAR_ID=...@group.calendar.google.com
-   ```
-3. `python sync.py`. Při prvním spuštění se otevře prohlížeč s přihlášením
-   do Googlu a vznikne `token.json`. Jeho obsah pak patří do secretu
-   `GOOGLE_CREDENTIALS`.
-
-`credentials.json`, `token.json` a `.env` jsou v `.gitignore` a do repa
-nepatří.
-
-## Známá omezení
-
-- **Plus4U token platí jen krátce** (cca 30 minut). Plus4U nenabízí trvalý
-  API klíč, takže před spuštěním je potřeba token v `UU_AUTH_HEADER` obnovit,
-  jinak synchronizace skončí chybou 401.
-- Rozpoznání „velkého“ úkolu podle klíčových slov v názvu je jen odhad.
-  Seznam je v `BIG_TASK_KEYWORDS` v `sync.py`.
-- Smazání úkolu v Plus4U se do Googlu nepropíše.
+1. V prohlížeči na Plus4U otevřít DevTools (**Cmd + Option + I**) → záložka **Network** → obnovit stránku (**Cmd + R**).
+2. Najít požadavek `listActiveRecords`, zkopírovat hodnotu hlavičky `authorization` a vložit ji do `.env`:
