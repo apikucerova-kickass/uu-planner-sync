@@ -1,8 +1,13 @@
 import json
 import os
 from datetime import datetime, timedelta, timezone
+import requests
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
+from googleapiclient.discovery import build
 
-# --- Automatické načtení souboru .env na Macu ---
+# --- Načtení souboru .env ---
 script_dir = os.path.dirname(os.path.abspath(__file__))
 env_path = os.path.join(script_dir, ".env")
 
@@ -13,13 +18,6 @@ if os.path.exists(env_path):
             if line and not line.startswith("#") and "=" in line:
                 k, v = line.split("=", 1)
                 os.environ[k.strip()] = v.strip().strip("'\"")
-# ------------------------------------------------
-
-from google.auth.transport.requests import Request
-from google.oauth2.credentials import Credentials
-from google_auth_oauthlib.flow import InstalledAppFlow
-from googleapiclient.discovery import build
-import requests
 
 # ================= KONFIGURACE =================
 SCOPES = [
@@ -29,20 +27,13 @@ SCOPES = [
 CACHE_FILE = "sync_cache.json"
 LOOKBACK_DAYS = 21  # Ignorovat neodevzdané starší než 3 týdny
 
-# Načtení z prostředí (.env nebo GitHub Secrets)
 CALENDAR_ID = os.getenv("CALENDAR_ID")
 UU_ENDPOINT = os.getenv("UU_ENDPOINT")
 UU_AUTH_HEADER = os.getenv("UU_AUTH_HEADER")
 
 if not UU_ENDPOINT or not UU_AUTH_HEADER:
-    raise ValueError("Chybí přihlašovací údaje k Plus4U! Zkontrolujte soubor .env nebo GitHub Secrets.")
+    raise ValueError("V .env chybí UU_ENDPOINT nebo UU_AUTH_HEADER!")
 
-# Vytvoření token.json v cloudu GitHub Actions
-if os.getenv("GOOGLE_CREDENTIALS") and not os.path.exists("token.json"):
-    with open("token.json", "w", encoding="utf-8") as f:
-        f.write(os.getenv("GOOGLE_CREDENTIALS"))
-
-# Klíčová slova pro události do kalendáře
 BIG_TASK_KEYWORDS = [
     "semestrální", "projekt", "zkouška", "test", "milestone", 
     "esej", "prezentace", "zápočet", "termín", "úkol", "cvičení"
@@ -107,8 +98,16 @@ def run_sync():
         "uri": UU_ENDPOINT,
         "pageInfo": {"pageSize": 4000}
     }
-    resp = requests.post(UU_ENDPOINT, headers=headers, json=payload)
-    resp.raise_for_status()
+    
+    try:
+        resp = requests.post(UU_ENDPOINT, headers=headers, json=payload)
+        resp.raise_for_status()
+    except requests.exceptions.HTTPError as e:
+        if resp.status_code == 401:
+            print("\n❌ CHYBA: Plus4U token vypršel!")
+            print("Otevřete Plus4U v prohlížeči, zkopírujte čerstvý 'Bearer ...' token z DevTools a vložte jej do .env.")
+            return
+        raise e
     
     data = resp.json()
     items = data.get("uuDwRecordList", [])
@@ -217,7 +216,7 @@ def run_sync():
         cache[uu_id] = rec
 
     save_cache(cache)
-    print(f"Synchronizace hotova. Nové úkoly: {synced_tasks_count}, kalendář: {synced_cal_count}.")
+    print(f"\n Hotovo! Nové úkoly v Tasks: {synced_tasks_count}, události v Kalendáři: {synced_cal_count}.")
 
 if __name__ == "__main__":
     run_sync()
